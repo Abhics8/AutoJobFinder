@@ -63,7 +63,8 @@ PAGE = """
 </div>
 <main>
   <p class="filters">
-    <a href="/">All matches</a> <a href="/?f=hot">≥90% 🔥</a>
+    <a href="/">All matches</a> <a href="/?f=top">Top matched</a> <a href="/?f=recent">Most recent</a>
+    <a href="/?f=hot">≥90% 🔥</a>
     <a href="/?f=applied">Applied</a> <a href="/?f=all">Everything incl. &lt;{{ '%d'|format(min_score*100) }}%</a>
   </p>
   {% for j in jobs %}
@@ -207,7 +208,17 @@ def resumes_rescore():
 
 def query_jobs(flt: str):
     where, params = "m.final_score >= ?", [config.MIN_SCORE]
-    if flt == "hot":
+    order = "m.final_score DESC"
+    limit = 200
+    if flt == "top":
+        where, params = "m.final_score >= ?", [config.MIN_SCORE]
+        order = "m.final_score DESC"
+        limit = 25
+    elif flt == "recent":
+        where, params = "m.final_score >= ?", [config.MIN_SCORE]
+        order = "j.fetched_at DESC"
+        limit = 50
+    elif flt == "hot":
         where, params = "m.final_score >= ?", [config.PRIORITY_SCORE]
     elif flt == "applied":
         where, params = "a.user_response = 'applied'", []
@@ -220,7 +231,7 @@ def query_jobs(flt: str):
                 LEFT JOIN alerts a ON a.job_id = m.job_id
                 WHERE {where} AND (a.user_response IS NULL OR a.user_response != 'ignored'
                                    OR ? = 'all')
-                ORDER BY m.final_score DESC LIMIT 200""",
+                ORDER BY {order} LIMIT {limit}""",
             params + [flt],
         ).fetchall()
 
