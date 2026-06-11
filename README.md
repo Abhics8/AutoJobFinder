@@ -1,8 +1,10 @@
 # job_finder — Autonomous Personal Job Matching System
 
+**Live dashboard:** [huggingface.co/spaces/Ab0202000/AutoJobFinder](https://huggingface.co/spaces/Ab0202000/AutoJobFinder) (private — log in as `Ab0202000`)
+
 Fetches jobs from Greenhouse, Lever, and JSearch (LinkedIn/Indeed aggregate),
-scores them against 6 resume variants using local embeddings, and DMs you on
-Slack when a job scores ≥80% fit. Runs on cron every 6 hours. Cost: $0
+scores them against your resume variants using local embeddings, and alerts
+when a job scores ≥80% fit. Runs automatically every 6 hours. Cost: $0
 (plus optional ~$5/mo Claude API for borderline-match explanations).
 
 ## Setup (30 min, one time)
