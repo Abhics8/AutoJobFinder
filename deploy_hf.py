@@ -29,10 +29,15 @@ api.upload_folder(
     folder_path=".",
     repo_id=repo_id,
     repo_type="space",
-    ignore_patterns=["venv/*", ".git/*", "embeddings/*", "jobs.db", "*.log",
-                     ".env", ".claude/*", "README.md", "__pycache__/*",
-                     "*/__pycache__/*", "setup.sh", "deploy_hf.py"],
+    ignore_patterns=["venv/*", ".git/*", ".gitignore", "embeddings/*",
+                     "jobs.db", "*.log", ".env", ".claude/*", "README.md",
+                     "__pycache__/*", "*/__pycache__/*", "setup.sh",
+                     "deploy_hf.py"],
 )
+# Resume PDFs are gitignored locally; upload explicitly (Space is private).
+# Must come after the folder upload so no .gitignore blocks them server-side.
+api.upload_folder(folder_path="data", path_in_repo="data",
+                  repo_id=repo_id, repo_type="space")
 api.upload_file(path_or_fileobj=SPACE_README.encode(), path_in_repo="README.md",
                 repo_id=repo_id, repo_type="space")
 
