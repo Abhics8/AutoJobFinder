@@ -1,4 +1,4 @@
-# job_finder — Autonomous Personal Job Matching System
+# AutoJobFinder — Autonomous Personal Job Matching System
 
 **Live dashboard:** [huggingface.co/spaces/Ab0202000/AutoJobFinder](https://huggingface.co/spaces/Ab0202000/AutoJobFinder) (private — log in as `Ab0202000`)
 
@@ -7,28 +7,42 @@ scores them against your resume variants using local embeddings, and alerts
 when a job scores ≥80% fit. Runs automatically every 6 hours. Cost: $0
 (plus optional ~$5/mo Claude API for borderline-match explanations).
 
-## Setup (30 min, one time)
+## Current resume variants
 
-1. **Resumes**: drop your 6 PDFs into `data/` named exactly:
-   `resume_MLE.pdf`, `resume_SWE.pdf`, `resume_DA.pdf`, `resume_DE.pdf`,
-   `resume_DS.pdf`, `resume_FullStack.pdf`
-2. **Run setup**: `./setup.sh` — creates venv, installs deps, downloads the
-   embedding model (~90MB), embeds your resumes.
-3. **API keys** in `.env`:
-   - `JSEARCH_API_KEY` — reuse your key from `~/job-monitor` (RapidAPI JSearch,
-     free tier 100 req/month; the 3 configured queries × 1 run/day fits).
-   - `SLACK_BOT_TOKEN` + `SLACK_USER_ID` — create a Slack app at
-     api.slack.com/apps, add the `chat:write` bot scope, install to workspace.
-     Without these, alerts print to console/cron.log instead.
-   - `ANTHROPIC_API_KEY` — optional, enables Phase-2 LLM explanations.
-4. **Test**: `venv/bin/python main.py`
-5. **Cron** (`crontab -e`):
+Resume PDFs are auto-discovered from `data/`. Upload/delete via the dashboard's
+**Resumes** tab — no code changes needed. Current variants:
+
+| Variant | File | Target roles |
+|---------|------|-------------|
+| MLE | `resume_MLE.pdf` | Machine Learning Engineer |
+| DE | `resume_DE.pdf` | Data Engineer |
+| DA | `resume_DA.pdf` | Data Analyst |
+| Generic | `resume_Generic.pdf` | General-purpose resume |
+
+Add more anytime (SDE, DS, FullStack, Quant, …) — each job is scored against
+every variant and matched to the best fit. The dashboard shows which resume
+to use per job and lets you download it in one click.
+
+## Setup (local, 30 min one-time)
+
+1. **Clone & install**:
+   ```bash
+   cd ~/job_finder
+   ./setup.sh
+   ```
+2. **API keys** in `.env`:
+   - `JSEARCH_API_KEY` — RapidAPI JSearch (free tier, 100 req/month). Covers
+     LinkedIn, Indeed, Glassdoor — and companies with custom ATSs (Goldman
+     Sachs, JPMorgan, Capital One).
+   - `SLACK_BOT_TOKEN` + `SLACK_USER_ID` — optional, for Slack DM alerts.
+   - `ANTHROPIC_API_KEY` — optional, enables LLM explanations for borderline
+     matches (70–85%).
+3. **Test**: `venv/bin/python main.py`
+4. **Dashboard**: `venv/bin/python web.py` → http://localhost:8000
+5. **Cron** (optional, for hands-off local runs):
    ```
    0 8 * * * cd ~/job_finder && venv/bin/python main.py >> cron.log 2>&1
    ```
-   Note: JSearch free tier only supports ~3 queries/day, so 1 run/day for
-   JSearch. Greenhouse/Lever are free — run every 6h if you want by adding
-   a second cron line; the fetcher dedupes.
 
 ## How scoring works
 
@@ -36,39 +50,47 @@ when a job scores ≥80% fit. Runs automatically every 6 hours. Cost: $0
 
 - `< 70%` — archived silently
 - `70–85%` — stored; Analyzer (if enabled) writes a short LLM explanation
-- `≥ 80%` — Slack alert ✅
+- `≥ 80%` — Slack alert ✅ / dashboard highlight
 - `≥ 90%` — priority alert 🔥
 
-Tune weights/thresholds in [config.py](config.py). Re-run `./setup.sh` after
-updating a resume PDF (it re-embeds only changed files).
+Tune weights/thresholds in [config.py](config.py).
 
-## Important reality checks vs. the original design
+## Hosted deployment (Hugging Face Space)
 
-- **LinkedIn has no public job-search API** for individuals; JSearch covers
-  LinkedIn + Indeed postings legally via RapidAPI.
-- **GS / JPMorgan / Capital One use custom ATSs**, not Greenhouse — JSearch
-  picks up their postings. Greenhouse/Lever boards in config are for
-  companies with public boards (edit `GREENHOUSE_BOARDS` / `LEVER_BOARDS`).
-- **FAISS dropped**: with 6 resume vectors, a numpy dot product is identical
-  and removes a dependency.
+The dashboard is deployed as a private Docker Space on Hugging Face. It runs
+fetch/match/alert cycles automatically every 6 hours — laptop can be off.
+
+To redeploy after local changes:
+```bash
+venv/bin/python deploy_hf.py
+```
+
+Add API keys as secrets in [Space settings](https://huggingface.co/spaces/Ab0202000/AutoJobFinder/settings) → Variables and secrets.
 
 ## Layout
 
 ```
 main.py            orchestrator (fetch → match → analyze → alert)
-agents/            fetcher, matcher, analyzer (Phase 2), alerter
+web.py             Flask dashboard (matches, resumes, tracking)
+agents/            fetcher, matcher, analyzer, alerter
 services/          embeddings (sentence-transformers), slack
 db.py              SQLite: jobs, matches, alerts
 config.py          keys, sources, skills list, score thresholds
-data/              your resume PDFs (gitignore these)
+data/              resume PDFs (auto-discovered, gitignored)
 embeddings/        cached resume vectors + extracted text
 ```
 
-## Tracking applications (Phase 2, week 4)
+## Job sources
 
-After applying, record it so precision can be measured:
-```sql
-UPDATE alerts SET user_response='applied' WHERE job_id='...';
-```
-Target: >70% of alerted jobs are worth applying to. If you're ignoring
-alerts, raise `ALERT_SCORE` in config.py.
+| Source | Method | Coverage |
+|--------|--------|----------|
+| Greenhouse | Public board API | Stripe, Databricks, Robinhood (configurable) |
+| Lever | Public board API | Palantir (configurable) |
+| JSearch | RapidAPI (free tier) | LinkedIn, Indeed, Glassdoor — GS, JPM, Uber, Capital One |
+
+## Application tracking
+
+Track applications directly from the dashboard — click **Mark applied** or
+**Skip** on each job card. Stats at the top show jobs fetched, matches, and
+applications. Target: >70% of alerted jobs are worth applying to; if not,
+raise `ALERT_SCORE` in config.py.
