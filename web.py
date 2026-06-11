@@ -4,7 +4,7 @@ Usage: venv/bin/python web.py  ->  http://localhost:8000
 """
 import threading
 
-from flask import Flask, redirect, render_template_string, request
+from flask import Flask, abort, redirect, render_template_string, request, send_file
 
 import config
 import db
@@ -50,6 +50,8 @@ PAGE = """
 </style></head><body>
 <header>
   <h1>🎯 AutoJobFinder</h1>
+  <a href="/" style="color:#fff">Matches</a>
+  <a href="/resumes" style="color:#fff">Resumes</a>
   {% if running %}<span>⏳ cycle running… page auto-refreshes</span>{% endif %}
   <form method="post" action="/run"><button class="run" {{ 'disabled' if running }}>▶ Run cycle now</button></form>
 </header>
@@ -80,6 +82,8 @@ PAGE = """
     </div>
     <div class="actions">
       <a class="btn apply" href="{{ j.url }}" target="_blank">Open posting ↗</a>
+      <a class="btn skip" href="/resume/{{ j.best_resume_variant }}"
+         title="Download the resume that best fits this job">📄 Get {{ j.best_resume_variant }} resume</a>
       {% if j.user_response == 'applied' %}
         <span class="btn applied">✓ Applied</span>
       {% else %}
@@ -92,6 +96,113 @@ PAGE = """
   {% else %}<p>No matches yet — drop resumes in data/, then hit “Run cycle now”.</p>{% endfor %}
 </main></body></html>
 """
+
+
+RESUMES_PAGE = """
+<!doctype html><html><head><meta charset="utf-8"><title>Resumes — AutoJobFinder</title>
+<style>
+  body { font-family: -apple-system, sans-serif; margin: 0; background: #f5f6f8; color: #1a1d23; }
+  header { background: #1a1d23; color: #fff; padding: 16px 28px; display: flex; align-items: center; gap: 20px; }
+  header h1 { font-size: 18px; margin: 0; flex: 1; } header a { color: #fff; }
+  main { padding: 24px 28px; max-width: 760px; }
+  .card { background: #fff; border-radius: 10px; padding: 16px 20px; margin-bottom: 12px;
+          box-shadow: 0 1px 3px rgba(0,0,0,.08); display: flex; align-items: center; gap: 14px; }
+  .card b { flex: 1; }
+  .btn { padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; }
+  .del { background: #fee2e2; color: #b91c1c; } .blue { background: #2563eb; color: #fff; }
+  .meta { font-size: 12px; color: #6b7280; }
+  form.upload { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  input[type=text] { padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; }
+  .note { font-size: 12px; color: #6b7280; margin-top: 14px; }
+</style></head><body>
+<header><h1>🎯 AutoJobFinder</h1><a href="/">Matches</a><a href="/resumes">Resumes</a></header>
+<main>
+  <h2>Resume variants ({{ resumes|length }})</h2>
+  {% for r in resumes %}
+  <div class="card">
+    <b>{{ r.name }}</b>
+    <span class="meta">{{ r.file }} · {{ '✅ embedded' if r.embedded else '⏳ will embed on save' }}</span>
+    <form method="post" action="/resumes/delete" onsubmit="return confirm('Delete {{ r.name }}?')">
+      <input type="hidden" name="variant" value="{{ r.name }}">
+      <button class="btn del">Delete</button></form>
+  </div>
+  {% else %}<p>No resumes yet — upload your first below.</p>{% endfor %}
+
+  <h2>Add a resume</h2>
+  <form class="upload" method="post" action="/resumes/upload" enctype="multipart/form-data">
+    <p><input type="text" name="name" placeholder="Variant name e.g. DS, FullStack, Quant" required
+              pattern="[A-Za-z0-9_-]+" title="letters/numbers/dash/underscore only"></p>
+    <p><input type="file" name="pdf" accept=".pdf" required></p>
+    <p><button class="btn blue">Upload & embed</button></p>
+  </form>
+
+  <form method="post" action="/resumes/rescore" style="margin-top:18px">
+    <button class="btn blue">↻ Re-score all jobs against current resumes</button>
+    <span class="note">Use after adding/removing resumes — re-runs the matcher on every stored job.</span>
+  </form>
+  <p class="note">Add as many variants as you like (10, 20, …). Each job is scored
+     against every resume and matched to the best one. {{ msg }}</p>
+</main></body></html>
+"""
+
+
+@app.route("/resume/<variant>")
+def resume_download(variant):
+    """Serve the resume PDF best matched to a job, ready to attach."""
+    path = config.DATA_DIR / f"resume_{variant}.pdf"
+    if variant not in config.resume_variants() or not path.exists():
+        abort(404)
+    return send_file(path, as_attachment=True,
+                     download_name=f"Abhi_{variant}_Resume.pdf")
+
+
+@app.route("/resumes")
+def resumes():
+    items = [{"name": v, "file": f,
+              "embedded": (config.EMBEDDINGS_DIR / f"resume_{v}.pkl").exists()}
+             for v, f in config.resume_variants().items()]
+    return render_template_string(RESUMES_PAGE, resumes=items,
+                                  msg=request.args.get("msg", ""))
+
+
+@app.route("/resumes/upload", methods=["POST"])
+def resumes_upload():
+    name = request.form["name"].strip()
+    file = request.files["pdf"]
+    if not file.filename.lower().endswith(".pdf"):
+        return redirect("/resumes?msg=Only PDF files are accepted.")
+    config.DATA_DIR.mkdir(exist_ok=True)
+    file.save(config.DATA_DIR / f"resume_{name}.pdf")
+    from services import embeddings
+    embeddings.precompute_resumes()
+    return redirect(f"/resumes?msg=Uploaded and embedded {name}.")
+
+
+@app.route("/resumes/delete", methods=["POST"])
+def resumes_delete():
+    v = request.form["variant"]
+    for p in [config.DATA_DIR / f"resume_{v}.pdf",
+              config.EMBEDDINGS_DIR / f"resume_{v}.pkl",
+              config.EMBEDDINGS_DIR / f"resume_{v}.txt"]:
+        p.unlink(missing_ok=True)
+    return redirect(f"/resumes?msg=Deleted {v}.")
+
+
+@app.route("/resumes/rescore", methods=["POST"])
+def resumes_rescore():
+    def task():
+        with _cycle_lock:
+            _cycle_status["running"] = True
+            try:
+                with db.connect() as conn:
+                    conn.execute("DELETE FROM matches")
+                from agents import matcher
+                matcher.run()
+            finally:
+                _cycle_status["running"] = False
+    if not _cycle_status["running"]:
+        threading.Thread(target=task, daemon=True).start()
+    return redirect("/?f=all")
 
 
 def query_jobs(flt: str):

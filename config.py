@@ -19,14 +19,12 @@ SLACK_USER_ID = os.getenv("SLACK_USER_ID", "")
 JSEARCH_API_KEY = os.getenv("JSEARCH_API_KEY", "")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
-# --- Resume variants: name -> PDF in data/ ---
-RESUME_VARIANTS = {
-    "MLE": "resume_MLE.pdf",
-    "SWE": "resume_SWE.pdf",   # general resume
-    "DA": "resume_DA.pdf",
-    "DE": "resume_DE.pdf",
-    # Add when ready: "DS": "resume_DS.pdf", "FullStack": "resume_FullStack.pdf"
-}
+# --- Resume variants: discovered dynamically from PDFs in data/ ---
+# Drop any number of PDFs in data/ (or upload via the dashboard's Resumes
+# page); the variant name is the filename without the "resume_" prefix.
+def resume_variants() -> dict[str, str]:
+    return {p.stem.removeprefix("resume_"): p.name
+            for p in sorted(DATA_DIR.glob("*.pdf"))}
 
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 

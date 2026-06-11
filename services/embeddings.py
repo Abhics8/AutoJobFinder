@@ -35,7 +35,7 @@ def extract_pdf_text(pdf_path: Path) -> str:
 def precompute_resumes(force: bool = False) -> dict[str, np.ndarray]:
     """Embed each resume PDF in data/, cache to embeddings/*.pkl."""
     vectors = {}
-    for variant, filename in config.RESUME_VARIANTS.items():
+    for variant, filename in config.resume_variants().items():
         pdf = config.DATA_DIR / filename
         cache = config.EMBEDDINGS_DIR / f"resume_{variant}.pkl"
         if not pdf.exists():
@@ -56,7 +56,7 @@ def precompute_resumes(force: bool = False) -> dict[str, np.ndarray]:
 
 def load_resume_vectors() -> dict[str, np.ndarray]:
     vectors = {}
-    for variant in config.RESUME_VARIANTS:
+    for variant in config.resume_variants():
         cache = config.EMBEDDINGS_DIR / f"resume_{variant}.pkl"
         if cache.exists():
             vectors[variant] = pickle.loads(cache.read_bytes())
