@@ -158,7 +158,32 @@ def respond():
     return redirect(request.referrer or "/")
 
 
+def _start_scheduler():
+    """Auto-run a cycle every 6 hours when hosted (no cron in the cloud)."""
+    import time
+
+    def loop():
+        while True:
+            try:
+                with _cycle_lock:
+                    _cycle_status["running"] = True
+                    orchestrator.run_cycle()
+            except Exception as e:
+                print(f"scheduled cycle failed: {e}")
+            finally:
+                _cycle_status["running"] = False
+            time.sleep(6 * 3600)
+
+    threading.Thread(target=loop, daemon=True).start()
+
+
 if __name__ == "__main__":
+    import os
     db.init()
-    print("AutoJobFinder dashboard -> http://localhost:8000")
-    app.run(port=8000, debug=False)
+    from services import embeddings
+    embeddings.precompute_resumes()  # no-op if cached; embeds on first cloud boot
+    port = int(os.getenv("PORT", 8000))
+    if os.getenv("AUTO_CYCLE", ""):
+        _start_scheduler()
+    print(f"AutoJobFinder dashboard -> http://localhost:{port}")
+    app.run(host="0.0.0.0", port=port, debug=False)

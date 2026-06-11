@@ -7,7 +7,9 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).parent
 load_dotenv(ROOT / ".env")
 
-DB_PATH = ROOT / "jobs.db"
+# On hosted platforms (HF Spaces persistent storage), set JOB_DATA_DIR=/data
+_data_dir = Path(os.getenv("JOB_DATA_DIR", ROOT))
+DB_PATH = _data_dir / "jobs.db"
 DATA_DIR = ROOT / "data"
 EMBEDDINGS_DIR = ROOT / "embeddings"
 
