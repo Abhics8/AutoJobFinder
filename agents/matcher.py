@@ -18,7 +18,22 @@ def extract_skills(text: str) -> set[str]:
     return found
 
 
-def score_job(job_text: str, resume_vectors: dict, resume_skills: dict) -> dict:
+def _location_boost(location: str) -> float:
+    loc = (location or "").lower()
+    return config.LOCATION_BOOST if any(p in loc for p in config.PREFERRED_LOCATIONS) else 0.0
+
+
+def _company_boost(company: str) -> float:
+    c = (company or "").lower()
+    if any(t in c for t in config.TIER1_COMPANIES):
+        return config.TIER1_BOOST
+    if any(t in c for t in config.TIER2_COMPANIES):
+        return config.TIER2_BOOST
+    return 0.0
+
+
+def score_job(job_text: str, resume_vectors: dict, resume_skills: dict,
+              company: str = "", location: str = "") -> dict:
     job_vec = embeddings.embed_text(job_text)
     sims = {v: float(np.dot(job_vec, vec)) for v, vec in resume_vectors.items()}
     best = max(sims, key=sims.get)
@@ -29,7 +44,11 @@ def score_job(job_text: str, resume_vectors: dict, resume_skills: dict) -> dict:
     missing = jd_skills - resume_skills[best]
     coverage = len(matched) / len(jd_skills) if jd_skills else 0.5
 
-    final = config.SIMILARITY_WEIGHT * cos + config.SKILL_COVERAGE_WEIGHT * coverage
+    base = config.SIMILARITY_WEIGHT * cos + config.SKILL_COVERAGE_WEIGHT * coverage
+    loc_b = _location_boost(location)
+    comp_b = _company_boost(company)
+    final = min(base + loc_b + comp_b, 1.0)
+
     return {
         "best_resume_variant": best,
         "cosine_similarity": round(cos, 3),
@@ -53,7 +72,8 @@ def run() -> int:
     jobs = db.unmatched_jobs()
     for job in jobs:
         text = f"{job['title']}\n{job['description'] or ''}"
-        result = score_job(text, resume_vectors, resume_skills)
+        result = score_job(text, resume_vectors, resume_skills,
+                           company=job["company"], location=job["location"])
         result["job_id"] = job["job_id"]
         db.insert_match(result)
         if result["final_score"] >= config.MIN_SCORE:
