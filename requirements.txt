@@ -4,3 +4,4 @@ requests>=2.31
 pypdf>=4.0
 slack-sdk>=3.27
 python-dotenv>=1.0
+flask>=3.0

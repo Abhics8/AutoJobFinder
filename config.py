@@ -20,11 +20,10 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 # --- Resume variants: name -> PDF in data/ ---
 RESUME_VARIANTS = {
     "MLE": "resume_MLE.pdf",
-    "SWE": "resume_SWE.pdf",
+    "SWE": "resume_SWE.pdf",   # general resume
     "DA": "resume_DA.pdf",
     "DE": "resume_DE.pdf",
-    "DS": "resume_DS.pdf",
-    "FullStack": "resume_FullStack.pdf",
+    # Add when ready: "DS": "resume_DS.pdf", "FullStack": "resume_FullStack.pdf"
 }
 
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
