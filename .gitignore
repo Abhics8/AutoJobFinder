@@ -1,0 +1,11 @@
+# secrets & personal data — never commit
+.env
+data/*.pdf
+embeddings/
+jobs.db
+cron.log
+
+venv/
+__pycache__/
+*.pyc
+.DS_Store
