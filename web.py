@@ -63,8 +63,8 @@ PAGE = """
 </div>
 <main>
   <p class="filters">
-    <a href="/">All matches</a> <a href="/?f=top">Top matched</a> <a href="/?f=recent">Most recent</a>
-    <a href="/?f=hot">≥90% 🔥</a>
+    <a href="/"><b>🆕 Latest</b></a> <a href="/?f=top">Top matched</a>
+    <a href="/?f=hot">🔥 ≥{{ '%d'|format(priority_score*100) }}%</a>
     <a href="/?f=applied">Applied</a> <a href="/?f=all">Everything incl. &lt;{{ '%d'|format(min_score*100) }}%</a>
   </p>
   {% for j in jobs %}
@@ -206,9 +206,18 @@ def resumes_rescore():
     return redirect("/?f=all")
 
 
+# Newest posting first. Jobs with a known posted_date lead (sorted newest);
+# jobs whose source omits a date sink below, ordered by when we discovered them.
+RECENCY = (
+    "CASE WHEN NULLIF(j.posted_date,'') IS NULL THEN 1 ELSE 0 END, "
+    "j.posted_date DESC, j.fetched_at DESC, m.final_score DESC"
+)
+
+
 def query_jobs(flt: str):
+    # Default view: recently posted jobs at the top, period.
     where, params = "m.final_score >= ?", [config.MIN_SCORE]
-    order = "m.final_score DESC"
+    order = RECENCY
     limit = 200
     if flt == "top":
         where, params = "m.final_score >= ?", [config.MIN_SCORE]
@@ -216,7 +225,7 @@ def query_jobs(flt: str):
         limit = 25
     elif flt == "recent":
         where, params = "m.final_score >= ?", [config.MIN_SCORE]
-        order = "j.fetched_at DESC"
+        order = RECENCY
         limit = 50
     elif flt == "hot":
         where, params = "m.final_score >= ?", [config.PRIORITY_SCORE]
@@ -248,7 +257,8 @@ def index():
         }
     return render_template_string(PAGE, jobs=query_jobs(flt), stats=stats,
                                   running=_cycle_status["running"],
-                                  min_score=config.MIN_SCORE)
+                                  min_score=config.MIN_SCORE,
+                                  priority_score=config.PRIORITY_SCORE)
 
 
 @app.route("/run", methods=["POST"])
