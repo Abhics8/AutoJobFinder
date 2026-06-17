@@ -209,7 +209,8 @@ TITLE_KEYWORDS = [
     "research engineer", "quantitative", "analytics engineer",
 ]
 TITLE_EXCLUDE = ["staff", "principal", "director", "manager", "vp",
-                 "head of", "10+", "lead", "architect"]
+                 "head of", "10+", "lead", "architect",
+                 "senior", "sr.", "sr ", "iii", " iv", " v "]
 
 # ═══════════════════════════════════════════════════════════════════
 # SCORING
@@ -217,9 +218,9 @@ TITLE_EXCLUDE = ["staff", "principal", "director", "manager", "vp",
 
 SIMILARITY_WEIGHT = 0.6
 SKILL_COVERAGE_WEIGHT = 0.4
-MIN_SCORE = 0.70
-ALERT_SCORE = 0.80
-PRIORITY_SCORE = 0.90
+MIN_SCORE = 0.78        # below: archive silently
+ALERT_SCORE = 0.87      # above: alert
+PRIORITY_SCORE = 0.92   # above: priority alert
 
 SKILLS = [
     "python", "java", "c++", "sql", "scala", "go", "typescript", "javascript",

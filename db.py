@@ -1,4 +1,5 @@
 """SQLite schema and helpers. Tables: jobs, matches, alerts."""
+import re
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timedelta
@@ -16,8 +17,10 @@ CREATE TABLE IF NOT EXISTS jobs (
     url TEXT,
     location TEXT,
     remote INTEGER DEFAULT 0,
-    fetched_at TEXT NOT NULL
+    fetched_at TEXT NOT NULL,
+    dedup_key TEXT
 );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_dedup ON jobs(dedup_key);
 CREATE TABLE IF NOT EXISTS matches (
     job_id TEXT PRIMARY KEY REFERENCES jobs(job_id),
     best_resume_variant TEXT,
@@ -50,21 +53,32 @@ def connect():
 
 def init():
     with connect() as conn:
+        # Migrate pre-dedup_key databases before applying schema/index.
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(jobs)").fetchall()]
+        if cols and "dedup_key" not in cols:
+            conn.execute("ALTER TABLE jobs ADD COLUMN dedup_key TEXT")
         conn.executescript(SCHEMA)
 
 
+def _dedup_key(company: str, title: str) -> str:
+    """Collapse the same role posted across multiple locations/IDs."""
+    norm = lambda s: re.sub(r"[^a-z0-9]+", "", (s or "").lower())
+    return f"{norm(company)}|{norm(title)}"
+
+
 def insert_job(job: dict) -> bool:
-    """Insert a job. Returns True if new, False if duplicate."""
+    """Insert a job. Returns True if new, False if duplicate (id or content)."""
     with connect() as conn:
         cur = conn.execute(
             """INSERT OR IGNORE INTO jobs
                (job_id, source, title, company, posted_date, description,
-                url, location, remote, fetched_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                url, location, remote, fetched_at, dedup_key)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
             (job["job_id"], job["source"], job["title"], job["company"],
              job.get("posted_date"), job.get("description", ""),
              job.get("url"), job.get("location"),
-             int(bool(job.get("remote"))), datetime.now().isoformat()),
+             int(bool(job.get("remote"))), datetime.now().isoformat(),
+             _dedup_key(job["company"], job["title"])),
         )
         return cur.rowcount > 0
 
