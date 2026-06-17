@@ -30,27 +30,66 @@ EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 # SOURCES — Big Tech, Finance, and top-tier companies
 # ═══════════════════════════════════════════════════════════════════
 
-# Greenhouse boards (public API, free, no auth)
+# Greenhouse boards (public API, free, no auth). Board token = the slug in
+# boards.greenhouse.io/<token>. Invalid tokens fail gracefully and are skipped.
 GREENHOUSE_BOARDS = [
-    # Big Tech / FAANG
-    "airbnb", "doordash", "figma", "notion", "discord",
-    "twitch", "pinterest", "lyft", "instacart", "snap",
-    "bytedance", "tiktok", "reddit", "dropbox", "stripe",
-    "databricks", "snowflakecomputing", "cockroachlabs",
-    "robinhood", "plaid", "brex", "ramp", "chime",
-    "spotifyforjobs", "wayfair",
-    # AI / ML focused
-    "openai", "anthropic", "scale", "huggingface",
-    "cohere", "deepmind",
-    # Finance / Fintech
-    "citadel", "twosigma", "deshaw", "point72",
-    "bloomberg", "blackrock",
+    # Big Tech / consumer
+    "airbnb", "doordash", "lyft", "pinterest", "dropbox", "reddit",
+    "discord", "twitch", "snap", "wayfair", "etsy", "peloton",
+    "roblox", "unity", "vimeo", "eventbrite", "nextdoor", "thumbtack",
+    "instacart", "samsara", "flexport", "faire",
+    # AI / ML / data infra
+    "openai", "anthropic", "scaleai", "huggingface", "cohere",
+    "databricks", "snowflakecomputing", "cockroachlabs", "confluent",
+    "datadog", "mongodb", "elastic", "hashicorp", "cloudflare",
+    "gitlab", "snyk", "airbyte", "dbtlabs", "weightsandbiases",
+    "anyscale", "runwayml", "adept", "perplexityai", "together",
+    # Fintech
+    "stripe", "robinhood", "plaid", "brex", "ramp", "chime",
+    "affirm", "sofi", "coinbase", "marqeta", "betterment",
+    "wealthfront", "nerdwallet", "creditkarma", "gusto", "bill",
+    "mercury", "moderntreasury", "newfront",
+    # Productivity / SaaS / dev tools
+    "figma", "notion", "asana", "airtable", "miro", "loom",
+    "webflow", "retool", "vercel", "grammarly", "calendly",
+    "benchling", "amplitude", "segment", "twilio", "zapier",
+    "postman", "linear", "sourcegraph",
+    # Health / bio / climate
+    "tempus", "benchling", "verily", "devoted", "cityblock",
+    "watershed", "crusoe",
+    # Defense / hardtech
+    "anduril", "shield-ai", "applied-intuition", "zipline",
+    # Marketplaces / consumer
+    "opendoor", "compass", "warbyparker", "allbirds", "sweetgreen",
+    "patreon", "cameo", "substack", "discordapp",
+    # Finance (quant / banks that use Greenhouse)
+    "citadel", "twosigma", "point72", "jumptrading", "imc",
+    "drwholdings", "squarepoint",
 ]
 
-# Lever boards (public API, free, no auth)
+# Lever boards (public API, free, no auth). Token = slug in jobs.lever.co/<token>.
 LEVER_BOARDS = [
-    "palantir", "anduril", "netflix",
-    "nerdwallet", "sofi", "affirm",
+    "palantir", "netflix", "anduril", "nuro", "kraken",
+    "attentive", "ramp", "plaid", "brex", "scaleai",
+    "voleon", "hudson-river-trading", "matchgroup", "upstart",
+    "rippling", "deel", "gopuff", "veho",
+    "lyra-health", "hims", "ro", "cedar", "spring-health",
+    "fanatics", "discord", "tatari", "neuralink", "shieldai",
+    "tools-for-humanity", "groq", "celestial-ai", "mistral",
+]
+
+# Ashby boards (public API, free, no auth). Token = slug in jobs.ashbyhq.com/<token>.
+# Ashby is the modern ATS of choice for many AI/ML startups — high-signal for you.
+ASHBY_BOARDS = [
+    "openai", "ramp", "notion", "linear", "vercel", "replicate",
+    "huggingface", "mistral", "elevenlabs", "runway", "suno",
+    "perplexity", "character", "cresta", "glean", "sierra",
+    "harvey", "decagon", "hebbia", "writer", "cohere",
+    "together-ai", "fireworks-ai", "baseten", "modal", "weights-biases",
+    "pinecone", "weaviate", "qdrant", "langchain", "llamaindex",
+    "ashby", "deel", "clay", "mercury", "watershed",
+    "ondo-finance", "anrok", "default", "browserbase", "vellum",
+    "tldv", "dust", "lovable", "cursor", "anysphere",
 ]
 
 # JSearch queries — covers LinkedIn, Indeed, Glassdoor.

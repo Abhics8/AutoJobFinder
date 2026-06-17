@@ -67,6 +67,29 @@ def fetch_lever(board: str) -> list[dict]:
     return jobs
 
 
+def fetch_ashby(board: str) -> list[dict]:
+    """Ashby public job-board API — covers many startups/scaleups."""
+    url = f"https://api.ashbyhq.com/posting-api/job-board/{board}?includeCompensation=true"
+    r = requests.get(url, timeout=TIMEOUT)
+    r.raise_for_status()
+    jobs = []
+    for j in r.json().get("jobs", []):
+        if not _title_ok(j.get("title", "")):
+            continue
+        jobs.append({
+            "job_id": f"ash_{board}_{j.get('id', hashlib.md5(j['title'].encode()).hexdigest())}",
+            "source": "ashby",
+            "title": j["title"],
+            "company": board.replace("-", " ").title(),
+            "posted_date": (j.get("publishedAt") or "")[:10],
+            "description": _clean(j.get("descriptionPlain") or j.get("descriptionHtml", "")),
+            "url": j.get("jobUrl") or j.get("applyUrl"),
+            "location": j.get("location", ""),
+            "remote": bool(j.get("isRemote")),
+        })
+    return jobs
+
+
 def fetch_jsearch(query: str) -> list[dict]:
     """JSearch (RapidAPI) aggregates LinkedIn/Indeed/Glassdoor postings."""
     if not config.JSEARCH_API_KEY:
@@ -104,19 +127,38 @@ def fetch_jsearch(query: str) -> list[dict]:
 
 
 def run() -> int:
-    """Fetch all sources, insert new jobs. Returns count of new jobs."""
-    new = 0
+    """Fetch all sources in parallel, insert new jobs. Returns count of new jobs.
+
+    Greenhouse/Lever/Ashby are free public APIs, so we monitor hundreds of
+    company boards concurrently — invalid/empty boards just fail gracefully.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
     sources = (
         [("greenhouse:" + b, lambda b=b: fetch_greenhouse(b)) for b in config.GREENHOUSE_BOARDS]
         + [("lever:" + b, lambda b=b: fetch_lever(b)) for b in config.LEVER_BOARDS]
+        + [("ashby:" + b, lambda b=b: fetch_ashby(b)) for b in config.ASHBY_BOARDS]
         + [("jsearch:" + q, lambda q=q: fetch_jsearch(q)) for q in config.JSEARCH_QUERIES]
     )
-    for name, fn in sources:
+
+    def safe(item):
+        name, fn = item
         try:
-            jobs = fn()
-            added = sum(db.insert_job(j) for j in jobs)
-            new += added
-            print(f"  [{name}] {len(jobs)} fetched, {added} new")
+            return name, fn(), None
         except Exception as e:
-            print(f"  [{name}] ERROR: {e}")
+            return name, [], str(e)
+
+    # Network fetches run in parallel (I/O-bound); DB inserts stay single-threaded.
+    new = total = ok_boards = errors = 0
+    with ThreadPoolExecutor(max_workers=24) as pool:
+        for name, jobs, err in pool.map(safe, sources):
+            if err:
+                errors += 1
+                continue
+            if jobs:
+                ok_boards += 1
+                total += len(jobs)
+                new += sum(db.insert_job(j) for j in jobs)
+    print(f"  {len(sources)} boards scanned · {ok_boards} with hits · "
+          f"{total} jobs · {new} new · {errors} skipped")
     return new
