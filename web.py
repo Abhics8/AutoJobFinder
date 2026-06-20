@@ -206,16 +206,23 @@ def resumes_rescore():
     return redirect("/?f=all")
 
 
-# Newest posting first. Jobs with a known posted_date lead (sorted newest);
-# jobs whose source omits a date sink below, ordered by when we discovered them.
+# Newest posting first, but interleave companies so one company posting a
+# batch on the same day doesn't monopolize the top. _crank = a job's rank
+# within its (company, date) group, so we show each company's #1 across all
+# companies before any company's #2.
+DIVERSITY_RANK = (
+    "ROW_NUMBER() OVER (PARTITION BY j.company, "
+    "COALESCE(NULLIF(j.posted_date,''), j.fetched_at) "
+    "ORDER BY m.final_score DESC) AS _crank"
+)
 RECENCY = (
     "CASE WHEN NULLIF(j.posted_date,'') IS NULL THEN 1 ELSE 0 END, "
-    "j.posted_date DESC, j.fetched_at DESC, m.final_score DESC"
+    "j.posted_date DESC, _crank ASC, j.fetched_at DESC, m.final_score DESC"
 )
 
 
 def query_jobs(flt: str):
-    # Default view: recently posted jobs at the top, period.
+    # Default view: recently posted jobs at the top, companies interleaved.
     where, params = "m.final_score >= ?", [config.MIN_SCORE]
     order = RECENCY
     limit = 200
@@ -235,7 +242,7 @@ def query_jobs(flt: str):
         where, params = "1=1", []
     with db.connect() as conn:
         return conn.execute(
-            f"""SELECT j.*, m.*, a.user_response FROM matches m
+            f"""SELECT j.*, m.*, a.user_response, {DIVERSITY_RANK} FROM matches m
                 JOIN jobs j ON j.job_id = m.job_id
                 LEFT JOIN alerts a ON a.job_id = m.job_id
                 WHERE {where} AND (a.user_response IS NULL OR a.user_response != 'ignored'
