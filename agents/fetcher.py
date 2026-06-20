@@ -138,8 +138,12 @@ def run() -> int:
         [("greenhouse:" + b, lambda b=b: fetch_greenhouse(b)) for b in config.GREENHOUSE_BOARDS]
         + [("lever:" + b, lambda b=b: fetch_lever(b)) for b in config.LEVER_BOARDS]
         + [("ashby:" + b, lambda b=b: fetch_ashby(b)) for b in config.ASHBY_BOARDS]
-        + [("jsearch:" + q, lambda q=q: fetch_jsearch(q)) for q in config.JSEARCH_QUERIES]
     )
+    # JSearch has a 100-req/month free quota, so run it at most once a day —
+    # the free ATS sources above run every cycle. Keeps LinkedIn/Indeed
+    # coverage (Google/Meta/Amazon/Goldman) alive long-term instead of burning out.
+    if config.JSEARCH_API_KEY and db.hours_since_source("jsearch") >= 20:
+        sources += [("jsearch:" + q, lambda q=q: fetch_jsearch(q)) for q in config.JSEARCH_QUERIES]
 
     def safe(item):
         name, fn = item

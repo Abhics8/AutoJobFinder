@@ -83,6 +83,17 @@ def insert_job(job: dict) -> bool:
         return cur.rowcount > 0
 
 
+def hours_since_source(source: str) -> float:
+    """Hours since a source last produced a job. Large number if never."""
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT MAX(fetched_at) FROM jobs WHERE source = ?", (source,)
+        ).fetchone()
+    if not row or not row[0]:
+        return 1e9
+    return (datetime.now() - datetime.fromisoformat(row[0])).total_seconds() / 3600
+
+
 def unmatched_jobs() -> list[sqlite3.Row]:
     with connect() as conn:
         return conn.execute(

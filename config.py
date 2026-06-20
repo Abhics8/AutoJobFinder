@@ -97,14 +97,13 @@ ASHBY_BOARDS = [
 # Apple, Goldman Sachs, JPMorgan, Capital One, Uber, Deloitte.
 # Free tier = 100 req/month → 7 queries × 1 run/day = ~210/month (upgrade
 # to Basic $10/mo for 500 req, or reduce to 3 queries to fit free tier).
+# 3 broad queries × 1 run/day = ~90 req/month, fits the free tier (100/mo).
+# These cover the custom-ATS giants (Google, Meta, Amazon, Goldman, JPMorgan)
+# that the free Greenhouse/Lever/Ashby boards don't reach.
 JSEARCH_QUERIES = [
     "machine learning engineer",
-    "data engineer",
     "software engineer new grad",
-    "data scientist",
-    "AI engineer",
-    "data analyst",
-    "ML engineer finance",
+    "data engineer",
 ]
 JSEARCH_LOCATION = "Washington, DC"
 JSEARCH_RADIUS = 50  # miles — covers Arlington 22202 + DC + nearby VA/MD
