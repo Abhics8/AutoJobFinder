@@ -4,16 +4,41 @@
 [![Python Version](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
-An autonomous job hunting engine that aggregates postings across multiple ATS platforms and general aggregators, runs local semantic embedding-based matching against resume variants, evaluates skill coverage with exact boundary matching, applies multi-tier company and location boosts, generates LLM-powered fit explanations, and triggers instant alerts (Slack/Console) for qualified positions.
+## 💡 What is AutoJobFinder?
+
+Imagine having a personal, AI-powered assistant that scans job boards 24/7, matches your skills against postings, tells you which of your resumes (e.g., Machine Learning, Data Engineer, or General Software Engineer) fits the job best, and drops a direct apply link with your tailored resume right into your Slack inbox. 
+
+AutoJobFinder does exactly that—fully automated, running in the cloud, and for $0 operating cost.
+
+### 🌟 Why this is a game-changer:
+- **Saves Hours of Searching:** It checks top company websites (like Stripe, OpenAI, Netflix) and major job sites (LinkedIn, Indeed) every 6 hours in the background.
+- **Smart Resume Selection:** It compares job descriptions to your different resumes, figuring out which one fits best and highlighting exactly which skills you match or miss.
+- **Instant Alerts:** If a job matches your profile by 80% or more, you get an instant Slack notification.
+- **One-Click Apply:** A personal dashboard lets you download the exact resume variant that matched the job in one click, ready to upload.
 
 > [!NOTE]
 > **Live dashboard:** Deployed privately at [huggingface.co/spaces/Ab0202000/AutoJobFinder](https://huggingface.co/spaces/Ab0202000/AutoJobFinder) (log in as `Ab0202000`).
 
 ---
 
-## 🏗️ System Architecture
+## 🔍 How It Works (At a Glance)
 
-The following diagram illustrates the lifecycle of a job posting through the AutoJobFinder cycle:
+```
+[1. Scrape Jobs] ➔ [2. Score Fit] ➔ [3. AI Review] ➔ [4. Alert Slack]
+   Finds jobs          Matches to your      Claude AI checks     Sends high-match
+   every 6 hours       best resume          borderline jobs      alerts & resumes
+```
+
+1. **Finds:** The scanner automatically gathers new job postings from tech job boards and general listings.
+2. **Scores:** It reads the job requirements and compares it with your resume variants. It automatically awards extra points for your preferred locations (like Washington DC, Arlington, NYC, or Remote) and dream companies.
+3. **Explains (AI Assistant):** For borderline matches, it uses Anthropic's Claude AI to write a 1-sentence summary explaining why the job matched and whether it is worth your time to apply.
+4. **Delivers:** You get direct Slack messages for top-tier matches, plus a beautiful web dashboard to review all roles, track application status, and download custom-fit resumes.
+
+---
+
+## 🏗️ Technical Architecture
+
+For engineering managers and developers, the following diagram illustrates the system lifecycle and multi-agent workflow:
 
 ```mermaid
 graph TD
@@ -42,7 +67,7 @@ graph TD
 
 ---
 
-## ✨ Key Features
+## ✨ Engineering Details & Key Features
 
 1. **Multi-Source ATS Fetcher**
    - **Greenhouse, Lever, & Ashby APIs:** Scans public job boards of hundreds of top tech companies, fintechs, and quant shops in parallel using `ThreadPoolExecutor` for concurrent network requests. Ashby covers high-signal AI startups (e.g., OpenAI, Perplexity, Notion).
